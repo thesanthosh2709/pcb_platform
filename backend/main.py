@@ -86,18 +86,39 @@ async def create_component(
     s3_client = get_s3_client()
     bucket = os.getenv("S3_BUCKET_NAME")
     
+    # Base URL for Render deployments
+    RENDER_URL = "https://pcb-backend-ob8m.onrender.com"
+    
     try:
-        if preview_image and s3_client and bucket:
-            s3_client.upload_fileobj(preview_image.file, bucket, preview_image.filename)
-            preview_url = f"https://{bucket}.s3.amazonaws.com/{preview_image.filename}"
-            
-        if symbol_file and s3_client and bucket:
-            s3_client.upload_fileobj(symbol_file.file, bucket, symbol_file.filename)
-            symbol_url = f"https://{bucket}.s3.amazonaws.com/{symbol_file.filename}"
-            
-        if footprint_file and s3_client and bucket:
-            s3_client.upload_fileobj(footprint_file.file, bucket, footprint_file.filename)
-            footprint_url = f"https://{bucket}.s3.amazonaws.com/{footprint_file.filename}"
+        if preview_image:
+            if s3_client and bucket:
+                s3_client.upload_fileobj(preview_image.file, bucket, preview_image.filename)
+                preview_url = f"https://{bucket}.s3.amazonaws.com/{preview_image.filename}"
+            else:
+                file_path = os.path.join("uploads", preview_image.filename)
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(preview_image.file, buffer)
+                preview_url = f"{RENDER_URL}/uploads/{preview_image.filename}"
+                
+        if symbol_file:
+            if s3_client and bucket:
+                s3_client.upload_fileobj(symbol_file.file, bucket, symbol_file.filename)
+                symbol_url = f"https://{bucket}.s3.amazonaws.com/{symbol_file.filename}"
+            else:
+                file_path = os.path.join("uploads", symbol_file.filename)
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(symbol_file.file, buffer)
+                symbol_url = f"{RENDER_URL}/uploads/{symbol_file.filename}"
+                
+        if footprint_file:
+            if s3_client and bucket:
+                s3_client.upload_fileobj(footprint_file.file, bucket, footprint_file.filename)
+                footprint_url = f"https://{bucket}.s3.amazonaws.com/{footprint_file.filename}"
+            else:
+                file_path = os.path.join("uploads", footprint_file.filename)
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(footprint_file.file, buffer)
+                footprint_url = f"{RENDER_URL}/uploads/{footprint_file.filename}"
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 

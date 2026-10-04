@@ -134,3 +134,18 @@ async def create_component(
     await db.commit()
     await db.refresh(db_comp)
     return db_comp
+
+@app.delete("/admin/components/{component_id}")
+async def delete_component(component_id: int, admin_secret: str, db: AsyncSession = Depends(get_db)):
+    if admin_secret != os.getenv("ADMIN_SECRET", "supersecret"):
+        raise HTTPException(status_code=401, detail="Invalid admin secret")
+    
+    query = select(Component).where(Component.id == component_id)
+    result = await db.execute(query)
+    comp = result.scalars().first()
+    if not comp:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    await db.delete(comp)
+    await db.commit()
+    return {"message": "Deleted"}

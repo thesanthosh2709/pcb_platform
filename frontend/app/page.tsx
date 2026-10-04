@@ -12,7 +12,7 @@ export default function Home() {
 
   const fetchComponents = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/components?q=${search}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pcb-backend-ob8m.onrender.com'}/components?q=${search}`);
       const data = await res.json();
       setComponents(data);
     } catch (err) {

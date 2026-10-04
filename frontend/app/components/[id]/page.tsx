@@ -16,7 +16,7 @@ export default function ComponentDetail() {
 
   const fetchComponent = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/components/${params.id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pcb-backend-ob8m.onrender.com'}/components/${params.id}`);
       const data = await res.json();
       setComponent(data);
     } catch (err) {
@@ -38,7 +38,7 @@ export default function ComponentDetail() {
     if (!userName || !content) return;
     
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/components/${params.id}/comments`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pcb-backend-ob8m.onrender.com'}/components/${params.id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_name: userName, content, rating })

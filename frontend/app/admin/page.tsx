@@ -27,7 +27,7 @@ export default function AdminDashboard() {
     if (footprintFile) formData.append('footprint_file', footprintFile);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/admin/components`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pcb-backend-ob8m.onrender.com'}/admin/components`, {
         method: 'POST',
         body: formData,
       });

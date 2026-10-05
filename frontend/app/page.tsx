@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+import { supabase } from '@/lib/supabase';
+
 export default function Home() {
   const [components, setComponents] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -12,9 +14,13 @@ export default function Home() {
 
   const fetchComponents = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pcb-backend-ob8m.onrender.com'}/components?q=${search}`);
-      const data = await res.json();
-      setComponents(data);
+      let query = supabase.from('components').select('*');
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,tags.ilike.%${search}%`);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      setComponents(data || []);
     } catch (err) {
       console.error(err);
     }

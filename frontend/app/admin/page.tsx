@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export default function AdminDashboard() {
   const [name, setName] = useState('');
@@ -17,35 +18,50 @@ export default function AdminDashboard() {
     setLoading(true);
     setMessage('');
 
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('description', description);
-    formData.append('tags', tags);
-    formData.append('admin_secret', adminSecret || process.env.NEXT_PUBLIC_ADMIN_SECRET || '');
-    if (previewImage) formData.append('preview_image', previewImage);
-    if (symbolFile) formData.append('symbol_file', symbolFile);
-    if (footprintFile) formData.append('footprint_file', footprintFile);
+    const secret = adminSecret || process.env.NEXT_PUBLIC_ADMIN_SECRET || '';
+    if (secret !== process.env.NEXT_PUBLIC_ADMIN_SECRET) {
+      setMessage('Error: Invalid admin secret.');
+      setLoading(false);
+      return;
+    }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pcb-backend-ob8m.onrender.com'}/admin/components`, {
-        method: 'POST',
-        body: formData,
-      });
+      const uploadFile = async (file: File) => {
+        const fileName = `${Date.now()}_${file.name}`;
+        const { error } = await supabase.storage.from('pcb_components').upload(fileName, file);
+        if (error) throw error;
+        const { data } = supabase.storage.from('pcb_components').getPublicUrl(fileName);
+        return data.publicUrl;
+      };
 
-      if (res.ok) {
-        setMessage('Component created successfully! ✅');
-        setName('');
-        setDescription('');
-        setTags('');
-        setPreviewImage(null);
-        setSymbolFile(null);
-        setFootprintFile(null);
-      } else {
-        const error = await res.json();
-        setMessage(`Error: ${error.detail}`);
-      }
+      let preview_url = null;
+      let symbol_url = null;
+      let footprint_url = null;
+
+      if (previewImage) preview_url = await uploadFile(previewImage);
+      if (symbolFile) symbol_url = await uploadFile(symbolFile);
+      if (footprintFile) footprint_url = await uploadFile(footprintFile);
+
+      const { error } = await supabase.from('components').insert([{
+        name,
+        description,
+        tags,
+        preview_image_url: preview_url,
+        symbol_file_url: symbol_url,
+        footprint_file_url: footprint_url
+      }]);
+
+      if (error) throw error;
+
+      setMessage('Component created successfully! 🎉');
+      setName('');
+      setDescription('');
+      setTags('');
+      setPreviewImage(null);
+      setSymbolFile(null);
+      setFootprintFile(null);
     } catch (err: any) {
-      setMessage(`Network error: ${err.message}`);
+      setMessage(`Error: ${err.message}`);
     }
     setLoading(false);
   };

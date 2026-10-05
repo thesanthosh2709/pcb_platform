@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function ComponentDetail() {
   const params = useParams();
@@ -16,9 +17,12 @@ export default function ComponentDetail() {
 
   const fetchComponent = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pcb-backend-ob8m.onrender.com'}/components/${params.id}`);
-      const data = await res.json();
-      setComponent(data);
+      const { data: compData, error: compErr } = await supabase.from('components').select('*').eq('id', params.id).single();
+      if (compErr) throw compErr;
+      
+      const { data: commentsData } = await supabase.from('comments').select('*').eq('component_id', params.id).order('created_at', { ascending: false });
+      
+      setComponent({ ...compData, comments: commentsData || [] });
     } catch (err) {
       console.error(err);
     }
@@ -37,18 +41,20 @@ export default function ComponentDetail() {
     const secret = prompt('Enter Admin Secret Key to delete this component:');
     if (!secret) return;
     
+    if (secret !== process.env.NEXT_PUBLIC_ADMIN_SECRET) {
+      alert('Invalid admin secret');
+      return;
+    }
+    
     if (confirm('Are you sure you want to permanently delete this component?')) {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pcb-backend-ob8m.onrender.com'}/admin/components/${params.id}?admin_secret=${encodeURIComponent(secret)}`, {
-          method: 'DELETE',
-        });
+        const { error } = await supabase.from('components').delete().eq('id', params.id);
         
-        if (res.ok) {
+        if (!error) {
           alert('Component deleted successfully.');
           window.location.href = '/';
         } else {
-          const error = await res.json();
-          alert(`Failed to delete: ${error.detail}`);
+          alert(`Failed to delete: ${error.message}`);
         }
       } catch (err) {
         console.error(err);
@@ -62,11 +68,15 @@ export default function ComponentDetail() {
     if (!userName || !content) return;
     
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://pcb-backend-ob8m.onrender.com'}/components/${params.id}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_name: userName, content, rating })
-      });
+      const { error } = await supabase.from('comments').insert([{
+        component_id: params.id,
+        user_name: userName,
+        content,
+        rating
+      }]);
+      
+      if (error) throw error;
+      
       setContent('');
       setShowFeedbackModal(false);
       fetchComponent();

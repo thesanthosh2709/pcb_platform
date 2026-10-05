@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List
 import os
-import boto3
 import shutil
+from supabase import create_client, Client
 
 from database import engine, Base, get_db
 from models import Component, Comment
@@ -25,15 +25,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def get_s3_client():
-    if not os.getenv("AWS_ACCESS_KEY_ID"):
+def get_supabase_client():
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    if not url or not key:
         return None
-    return boto3.client(
-        's3',
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.getenv("AWS_REGION")
-    )
+    return create_client(url, key)
 
 @app.on_event("startup")
 async def startup():
@@ -83,42 +80,38 @@ async def create_component(
     preview_url = None
     symbol_url = None
     footprint_url = None
-    s3_client = get_s3_client()
-    bucket = os.getenv("S3_BUCKET_NAME")
+    supabase = get_supabase_client()
+    bucket = os.getenv("SUPABASE_BUCKET", "pcb_components")
     
-    # Base URL for Render deployments
+    # Base URL for Render deployments (Local Fallback)
     RENDER_URL = "https://pcb-backend-ob8m.onrender.com"
     
+    def handle_upload(file_obj: UploadFile):
+        if not file_obj:
+            return None
+        if supabase:
+            file_bytes = file_obj.file.read()
+            # Upsert prevents errors if a file with the same name is uploaded again
+            supabase.storage.from_(bucket).upload(
+                file=file_bytes,
+                path=file_obj.filename,
+                file_options={"content-type": file_obj.content_type, "upsert": "true"}
+            )
+            return supabase.storage.from_(bucket).get_public_url(file_obj.filename)
+        else:
+            # Fallback to local
+            file_path = os.path.join("uploads", file_obj.filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file_obj.file, buffer)
+            return f"{RENDER_URL}/uploads/{file_obj.filename}"
+
     try:
         if preview_image:
-            if s3_client and bucket:
-                s3_client.upload_fileobj(preview_image.file, bucket, preview_image.filename)
-                preview_url = f"https://{bucket}.s3.amazonaws.com/{preview_image.filename}"
-            else:
-                file_path = os.path.join("uploads", preview_image.filename)
-                with open(file_path, "wb") as buffer:
-                    shutil.copyfileobj(preview_image.file, buffer)
-                preview_url = f"{RENDER_URL}/uploads/{preview_image.filename}"
-                
+            preview_url = handle_upload(preview_image)
         if symbol_file:
-            if s3_client and bucket:
-                s3_client.upload_fileobj(symbol_file.file, bucket, symbol_file.filename)
-                symbol_url = f"https://{bucket}.s3.amazonaws.com/{symbol_file.filename}"
-            else:
-                file_path = os.path.join("uploads", symbol_file.filename)
-                with open(file_path, "wb") as buffer:
-                    shutil.copyfileobj(symbol_file.file, buffer)
-                symbol_url = f"{RENDER_URL}/uploads/{symbol_file.filename}"
-                
+            symbol_url = handle_upload(symbol_file)
         if footprint_file:
-            if s3_client and bucket:
-                s3_client.upload_fileobj(footprint_file.file, bucket, footprint_file.filename)
-                footprint_url = f"https://{bucket}.s3.amazonaws.com/{footprint_file.filename}"
-            else:
-                file_path = os.path.join("uploads", footprint_file.filename)
-                with open(file_path, "wb") as buffer:
-                    shutil.copyfileobj(footprint_file.file, buffer)
-                footprint_url = f"{RENDER_URL}/uploads/{footprint_file.filename}"
+            footprint_url = handle_upload(footprint_file)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 

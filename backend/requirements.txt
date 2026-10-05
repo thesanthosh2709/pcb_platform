@@ -5,6 +5,6 @@ asyncpg
 pydantic
 pydantic-settings
 python-multipart
-boto3
+supabase
 python-dotenv
 greenlet

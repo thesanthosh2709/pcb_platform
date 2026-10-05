@@ -37,31 +37,7 @@ export default function ComponentDetail() {
     }
   };
 
-  const handleDelete = async () => {
-    const secret = prompt('Enter Admin Secret Key to delete this component:');
-    if (!secret) return;
-    
-    if (secret !== process.env.NEXT_PUBLIC_ADMIN_SECRET) {
-      alert('Invalid admin secret');
-      return;
-    }
-    
-    if (confirm('Are you sure you want to permanently delete this component?')) {
-      try {
-        const { error } = await supabase.from('components').delete().eq('id', params.id);
-        
-        if (!error) {
-          alert('Component deleted successfully.');
-          window.location.href = '/';
-        } else {
-          alert(`Failed to delete: ${error.message}`);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Network error while deleting.');
-      }
-    }
-  };
+
 
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,12 +74,7 @@ export default function ComponentDetail() {
           )}
         </div>
         <div className="w-full md:w-1/2 flex flex-col justify-center">
-          <div className="flex justify-between items-start mb-4 gap-4">
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">{component.name}</h1>
-            <button onClick={handleDelete} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="Delete Component">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            </button>
-          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tight">{component.name}</h1>
           <p className="text-slate-600 mb-8 text-lg leading-relaxed">{component.description}</p>
           <div className="mb-10 flex flex-wrap gap-2">
             {component.tags?.split(',').map((tag: string, i: number) => (

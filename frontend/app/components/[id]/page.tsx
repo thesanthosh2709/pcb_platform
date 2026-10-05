@@ -37,7 +37,7 @@ export default function ComponentDetail() {
         const blobUrl = window.URL.createObjectURL(blob);
         
         const urlParts = url.split('/');
-        const rawFileName = urlParts[urlParts.length - 1];
+        const rawFileName = urlParts[urlParts.length - 1].split('?')[0];
         const decodedFileName = decodeURIComponent(rawFileName);
         const cleanFileName = decodedFileName.replace(/^\d+_/, '');
         

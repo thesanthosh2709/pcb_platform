@@ -19,7 +19,7 @@ export default function RootLayout({
             <a href="/" className="text-2xl font-extrabold tracking-tight text-slate-800 hover:text-blue-600 transition-colors">
               <span className="text-blue-600">⚡</span> ComponentHub
             </a>
-            <a href="/admin" className="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors border border-slate-200 px-4 py-2 rounded-full hover:bg-slate-50 shadow-sm">Admin Panel</a>
+            <a href="/request" className="text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all border border-slate-700 px-5 py-2.5 rounded-full shadow-lg shadow-slate-900/20 active:scale-95">Request Component</a>
           </div>
         </nav>
         <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full relative">

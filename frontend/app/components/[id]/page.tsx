@@ -28,10 +28,33 @@ export default function ComponentDetail() {
     }
   };
 
-  const handleDownload = (url: string | null) => {
+  const handleDownload = async (url: string | null) => {
     if (url) {
-      window.open(url, '_blank');
-      setShowFeedbackModal(true);
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const urlParts = url.split('/');
+        const rawFileName = urlParts[urlParts.length - 1];
+        const decodedFileName = decodeURIComponent(rawFileName);
+        const cleanFileName = decodedFileName.replace(/^\d+_/, '');
+        
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = cleanFileName;
+        document.body.appendChild(a);
+        a.click();
+        
+        window.URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(a);
+        
+        setShowFeedbackModal(true);
+      } catch (err) {
+        console.error("Download failed:", err);
+        alert('Failed to securely download the file. Please try again.');
+      }
     } else {
       alert('This file is currently unavailable for download.');
     }

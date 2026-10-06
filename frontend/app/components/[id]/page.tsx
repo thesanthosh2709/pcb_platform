@@ -3,9 +3,29 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+interface CommentRecord {
+  id: string | number;
+  user_name: string;
+  rating: number;
+  content: string;
+  created_at: string;
+}
+
+interface ComponentRecord {
+  id: string | number;
+  name: string;
+  description: string;
+  tags: string;
+  symbol_preview_url: string | null;
+  footprint_preview_url: string | null;
+  symbol_file_url: string | null;
+  footprint_file_url: string | null;
+  comments?: CommentRecord[];
+}
+
 export default function ComponentDetail() {
   const params = useParams();
-  const [component, setComponent] = useState<any>(null);
+  const [component, setComponent] = useState<ComponentRecord | null>(null);
   const [userName, setUserName] = useState('');
   const [content, setContent] = useState('');
   const [rating, setRating] = useState(5);
@@ -23,8 +43,8 @@ export default function ComponentDetail() {
       
       const { data: commentsData } = await supabase.from('comments').select('*').eq('component_id', params.id).order('created_at', { ascending: false });
       
-      setComponent({ ...compData, comments: commentsData || [] });
-    } catch (err) {
+      setComponent({ ...compData, comments: commentsData || [] } as ComponentRecord);
+    } catch (err: unknown) {
       console.error(err);
     }
   };
@@ -52,12 +72,12 @@ export default function ComponentDetail() {
         document.body.removeChild(a);
         
         setShowFeedbackModal(true);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Download failed:", err);
-        alert('Failed to securely download the file. Please try again.');
+        window.alert('Failed to securely download the file. Please try again.');
       }
     } else {
-      alert('This file is currently unavailable for download.');
+      window.alert('This file is currently unavailable for download.');
     }
   };
 
@@ -78,7 +98,7 @@ export default function ComponentDetail() {
       setContent('');
       setShowFeedbackModal(false);
       fetchComponent();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
     }
   };
@@ -184,8 +204,8 @@ export default function ComponentDetail() {
         </h3>
         
         <div className="space-y-6">
-          {component.comments?.length > 0 ? (
-            component.comments.map((comment: any) => (
+          {component.comments && component.comments.length > 0 ? (
+            component.comments.map((comment: CommentRecord) => (
               <div key={comment.id} className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <span className="font-bold text-slate-800 text-lg">{comment.user_name}</span>

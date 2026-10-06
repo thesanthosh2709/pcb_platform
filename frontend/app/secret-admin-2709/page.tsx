@@ -2,6 +2,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
+// 1. Strict Types to satisfy Vercel build
+interface ComponentRecord {
+  id: string | number;
+  name: string;
+  description: string;
+  tags: string;
+  symbol_preview_url: string | null;
+  footprint_preview_url: string | null;
+  symbol_file_url: string | null;
+  footprint_file_url: string | null;
+}
+
 export default function AdminDashboard() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -17,7 +29,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  const [components, setComponents] = useState<any[]>([]);
+  // 2. Strongly typed state
+  const [components, setComponents] = useState<ComponentRecord[]>([]);
 
   useEffect(() => {
     fetchComponents();
@@ -25,7 +38,9 @@ export default function AdminDashboard() {
 
   const fetchComponents = async () => {
     const { data } = await supabase.from('components').select('*').order('id', { ascending: false });
-    setComponents(data || []);
+    if (data) {
+      setComponents(data as ComponentRecord[]);
+    }
   };
 
   const extractPath = (url: string | null) => {
@@ -34,14 +49,14 @@ export default function AdminDashboard() {
     return parts.length > 1 ? parts[1] : null;
   };
 
-  const handleDeleteComponent = async (comp: any) => {
-    const secret = prompt('Enter Delete Secret Code:');
+  const handleDeleteComponent = async (comp: ComponentRecord) => {
+    const secret = window.prompt('Enter Delete Secret Code:');
     if (secret !== process.env.NEXT_PUBLIC_DELETE_SECRET_CODE) {
-      alert('Incorrect Secret Code');
+      window.alert('Incorrect Secret Code');
       return;
     }
 
-    if (confirm(`Are you sure you want to permanently delete ${comp.name} and its files?`)) {
+    if (window.confirm(`Are you sure you want to permanently delete ${comp.name} and its files?`)) {
       try {
         const paths = [
           extractPath(comp.symbol_preview_url),
@@ -57,10 +72,15 @@ export default function AdminDashboard() {
         const { error } = await supabase.from('components').delete().eq('id', comp.id);
         if (error) throw error;
 
-        alert('Component deleted successfully!');
+        window.alert('Component deleted successfully!');
         fetchComponents();
-      } catch (err: any) {
-        alert(`Error: ${err.message}`);
+      } catch (err: unknown) {
+        // Safe error handling for strict TS
+        if (err instanceof Error) {
+          window.alert(`Error: ${err.message}`);
+        } else {
+          window.alert('An unknown error occurred.');
+        }
       }
     }
   };
@@ -117,8 +137,12 @@ export default function AdminDashboard() {
       setSymbolFile(null);
       setFootprintFile(null);
       fetchComponents();
-    } catch (err: any) {
-      setMessage(`Error: ${err.message}`);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setMessage(`Error: ${err.message}`);
+      } else {
+        setMessage('An unknown error occurred.');
+      }
     }
     setLoading(false);
   };
@@ -153,7 +177,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* --- NEW DUAL PREVIEW IMAGE INPUTS --- */}
+          {/* --- STRICTLY MAPPED DUAL PREVIEW IMAGE INPUTS --- */}
           <div className="col-span-1">
             <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Symbol Preview Image</label>
             <input type="file" accept="image/*" onChange={e => setSymbolPreview(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer transition-colors" />

@@ -95,11 +95,18 @@ export default function ComponentDetails() {
               <div className="bg-white px-4 py-3 border-b border-slate-100">
                 <h3 className="font-bold text-slate-800">Symbol</h3>
               </div>
-              <div className="flex-1 flex items-center justify-center p-4 min-h-[260px] bg-white">
+              {/* KiCad schematic style cream paper background with blend */}
+              <div className="flex-1 flex items-center justify-center p-4 min-h-[260px] bg-[#fcfbf7] relative">
+                {/* Subtle grid pattern like KiCad schematic sheet */}
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #64748b 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
                 {comp.symbol_preview_url ? (
-                  <img src={comp.symbol_preview_url} alt="Symbol Preview" className="max-h-56 object-contain" />
+                  <img 
+                    src={comp.symbol_preview_url} 
+                    alt="Symbol Preview" 
+                    className="max-h-56 object-contain mix-blend-multiply relative z-10" 
+                  />
                 ) : (
-                  <p className="text-slate-400 font-medium text-sm">No Symbol Preview</p>
+                  <p className="text-slate-400 font-medium text-sm relative z-10">No Symbol Preview</p>
                 )}
               </div>
               <div className="p-4 bg-white border-t border-slate-100">

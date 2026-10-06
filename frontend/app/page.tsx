@@ -1,121 +1,105 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
-export default function ComponentDetails() {
-  const { id } = useParams();
-  const [comp, setComp] = useState<any>(null);
+export default function Home() {
+  const [components, setComponents] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchComponent = async () => {
-      const { data } = await supabase.from('components').select('*').eq('id', id).single();
-      setComp(data);
+    fetchComponents();
+  }, [search]);
+
+  const fetchComponents = async () => {
+    try {
+      setLoading(true);
+      let query = supabase.from('components').select('*').order('id', { ascending: false });
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,tags.ilike.%${search}%`);
+      }
+      const { data, error } = await query;
+      if (error) {
+        console.error("Supabase fetch error:", error);
+      }
+      setComponents(data || []);
+    } catch (err) {
+      console.error("Fetch exception:", err);
+    } finally {
       setLoading(false);
-    };
-    if (id) fetchComponent();
-  }, [id]);
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-xl font-bold text-slate-500">Loading Component...</div>;
-  if (!comp) return <div className="min-h-screen flex items-center justify-center text-xl font-bold text-red-500">Component Not Found</div>;
-
-  // Left side shows Component Hardware Photo
-  const componentPhoto = comp.component_image_url || comp.symbol_preview_url || comp.footprint_preview_url;
+    }
+  };
 
   return (
-    <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
-      <Link href="/" className="text-blue-600 hover:text-blue-800 font-semibold mb-6 inline-flex items-center gap-2">
-        &larr; Back to Library
-      </Link>
-
-      <div className="flex flex-col xl:flex-row gap-8">
-        
-        {/* LEFT SIDE: Hardware Component Image & Meta */}
-        <div className="w-full xl:w-1/3 space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex items-center justify-center h-64">
-             {componentPhoto ? (
-               <img src={componentPhoto} alt={comp.name} className="max-h-full max-w-full object-contain mix-blend-multiply" />
-             ) : (
-               <p className="text-slate-400 font-medium">No Hardware Photo</p>
-             )}
-          </div>
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">{comp.name}</h1>
-            <p className="mt-4 text-slate-600 leading-relaxed text-sm md:text-base">{comp.description}</p>
-          </div>
-          <div className="flex flex-wrap gap-2 pt-2">
-            {comp.tags?.split(',').map((tag: string, index: number) => (
-              <span key={index} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-md text-xs font-bold border border-blue-100">
-                {tag.trim()}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT SIDE: SnapMagic Style Symbol & Footprint Side-by-Side */}
-        <div className="w-full xl:w-2/3 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
-            <span className="font-bold text-slate-900 border-b-2 border-blue-600 pb-1">Symbol and Footprint</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+    <div className="space-y-12 animate-in fade-in duration-500 relative z-10">
+      {/* Hero Search Section */}
+      <div className="text-center space-y-6 py-16 px-4 bg-white/40 border border-white backdrop-blur-sm rounded-3xl shadow-xl shadow-slate-200/50 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-emerald-50 opacity-50"></div>
+        <div className="relative z-10">
+            <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-slate-900 leading-tight">
+              Find Your Next <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500">Component</span>
+            </h1>
+            <p className="text-slate-500 text-lg md:text-xl max-w-2xl mx-auto mt-4 font-medium leading-relaxed">
+              High-quality PCB footprints and schematic symbols for your electronic designs, curated by the community.
+            </p>
             
-            {/* Symbol Box */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
-              <div className="bg-white px-4 py-3 border-b border-slate-100">
-                <h3 className="font-bold text-slate-800">Symbol</h3>
-              </div>
-              <div className="flex-1 flex items-center justify-center p-4 min-h-[260px] bg-white">
-                {comp.symbol_preview_url ? (
-                  <img src={comp.symbol_preview_url} alt="Symbol Preview" className="max-h-56 object-contain" />
-                ) : (
-                  <p className="text-slate-400 font-medium text-sm">No Symbol Preview</p>
-                )}
-              </div>
-              <div className="p-4 bg-white border-t border-slate-100">
-                <a 
-                  href={comp.symbol_file_url || '#'} 
-                  target={comp.symbol_file_url ? "_blank" : "_self"}
-                  download
-                  className={`block w-full text-center font-bold py-3 rounded-lg transition-colors border ${comp.symbol_file_url ? 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-500 hover:text-white' : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'}`}
-                >
-                  Download Symbol (.lib)
-                </a>
-              </div>
+            <div className="max-w-2xl mx-auto mt-10 relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-400 to-emerald-400 rounded-full blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+              <input 
+                type="text" 
+                placeholder="Search by name (e.g. ESP32, NE555) or tags..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="relative w-full bg-white border border-slate-200 rounded-full py-5 px-8 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-lg font-medium transition-all"
+              />
             </div>
-
-            {/* Footprint Box (SnapEDA Dark Grid Style) */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
-              <div className="bg-white px-4 py-3 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-bold text-slate-800">Footprint</h3>
-                <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider">2D Model</span>
-              </div>
-              <div className="flex-1 flex items-center justify-center p-4 min-h-[260px] bg-slate-950 relative">
-                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
-                {comp.footprint_preview_url ? (
-                  <img src={comp.footprint_preview_url} alt="Footprint Preview" className="max-h-56 object-contain relative z-10" />
-                ) : (
-                  <p className="text-slate-500 font-medium text-sm relative z-10">No Footprint Preview</p>
-                )}
-              </div>
-              <div className="p-4 bg-white border-t border-slate-100">
-                <a 
-                  href={comp.footprint_file_url || '#'} 
-                  target={comp.footprint_file_url ? "_blank" : "_self"}
-                  download
-                  className={`block w-full text-center font-bold py-3 rounded-lg transition-colors border ${comp.footprint_file_url ? 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-500 hover:text-white' : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'}`}
-                >
-                  Download Footprint (.kicad_mod)
-                </a>
-              </div>
-            </div>
-
-          </div>
         </div>
-
       </div>
+
+      {/* Components Grid */}
+      {loading ? (
+        <div className="text-center py-20 text-slate-400 font-bold text-xl">
+          Loading components...
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {components.map(comp => {
+            // Priority: Real Component Hardware Photo -> Symbol -> Footprint
+            const displayImage = comp.component_image_url || comp.symbol_preview_url || comp.footprint_preview_url;
+            
+            return (
+              <Link href={`/components/${comp.id}`} key={comp.id} className="group block">
+                <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1">
+                  <div className="h-56 bg-slate-50 relative flex items-center justify-center border-b border-slate-100 p-4">
+                    {displayImage ? (
+                      <img src={displayImage} alt={comp.name} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300 font-medium">No Image Available</div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-slate-800 mb-2 tracking-tight group-hover:text-blue-600 transition-colors">{comp.name}</h3>
+                    <p className="text-slate-500 text-sm line-clamp-2 leading-relaxed">{comp.description}</p>
+                    {comp.tags && (
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {comp.tags.split(',').map((tag: string, i: number) => (
+                          <span key={i} className="px-3 py-1 bg-slate-100 border border-slate-200 text-xs font-semibold rounded-md text-slate-600 tracking-wide">{tag.trim()}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+          {components.length === 0 && (
+            <div className="col-span-full text-center text-slate-400 py-16 font-medium text-lg">
+              No components found. Go to Admin page to deploy components!
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

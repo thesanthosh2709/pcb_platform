@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
 import { supabase } from '@/lib/supabase';
 
 export default function Home() {
@@ -14,7 +13,7 @@ export default function Home() {
 
   const fetchComponents = async () => {
     try {
-      let query = supabase.from('components').select('*');
+      let query = supabase.from('components').select('*').order('id', { ascending: false });
       if (search) {
         query = query.or(`name.ilike.%${search}%,tags.ilike.%${search}%`);
       }
@@ -52,12 +51,16 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {components.map(comp => (
+        {components.map(comp => {
+          // Check if either preview exists
+          const previewImage = comp.symbol_preview_url || comp.footprint_preview_url;
+          
+          return (
           <Link href={`/components/${comp.id}`} key={comp.id} className="group block">
             <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1">
               <div className="h-56 bg-slate-50 relative flex items-center justify-center border-b border-slate-100">
-                {comp.symbol_preview_url ? (
-                  <img src={comp.symbol_preview_url} alt={comp.name} className="w-full h-full object-contain p-4 mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+                {previewImage ? (
+                  <img src={previewImage} alt={comp.name} className="w-full h-full object-contain p-4 mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-300 font-medium">No Image Available</div>
                 )}
@@ -75,7 +78,7 @@ export default function Home() {
               </div>
             </div>
           </Link>
-        ))}
+        )})}
         {components.length === 0 && (
           <div className="col-span-full text-center text-slate-400 py-16 font-medium text-lg">No components found for your search.</div>
         )}

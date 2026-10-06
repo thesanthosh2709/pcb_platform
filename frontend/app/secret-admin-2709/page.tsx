@@ -1,18 +1,22 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import ImageCropModal from '@/components/ImageCropModal';
 
+// 1. Strict Types
 interface ComponentRecord {
   id: string | number;
   name: string;
   description: string;
   tags: string;
-  component_image_url: string | null;
+  component_image_url?: string | null;
   symbol_preview_url: string | null;
   footprint_preview_url: string | null;
   symbol_file_url: string | null;
   footprint_file_url: string | null;
 }
+
+type CropTarget = 'componentImage' | 'symbolPreview' | 'footprintPreview' | null;
 
 export default function AdminDashboard() {
   const [name, setName] = useState('');
@@ -20,18 +24,20 @@ export default function AdminDashboard() {
   const [tags, setTags] = useState('');
   const [adminSecret, setAdminSecret] = useState('');
   
-  // 3 Preview States: Component Real Photo, Symbol, Footprint
   const [componentImage, setComponentImage] = useState<File | null>(null);
   const [symbolPreview, setSymbolPreview] = useState<File | null>(null);
   const [footprintPreview, setFootprintPreview] = useState<File | null>(null);
   
-  // Downloadable Files
   const [symbolFile, setSymbolFile] = useState<File | null>(null);
   const [footprintFile, setFootprintFile] = useState<File | null>(null);
   
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [components, setComponents] = useState<ComponentRecord[]>([]);
+
+  // Crop State
+  const [cropTarget, setCropTarget] = useState<CropTarget>(null);
+  const [cropImageSrc, setCropImageSrc] = useState<string>('');
 
   useEffect(() => {
     fetchComponents();
@@ -44,7 +50,28 @@ export default function AdminDashboard() {
     }
   };
 
-  const extractPath = (url: string | null) => {
+  const handleFileSelectForCrop = (e: React.ChangeEvent<HTMLInputElement>, target: CropTarget) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        setCropImageSrc(reader.result?.toString() || '');
+        setCropTarget(target);
+      });
+      reader.readAsDataURL(file);
+      e.target.value = ''; // reset so same file can trigger change
+    }
+  };
+
+  const handleCropApply = (croppedFile: File) => {
+    if (cropTarget === 'componentImage') setComponentImage(croppedFile);
+    if (cropTarget === 'symbolPreview') setSymbolPreview(croppedFile);
+    if (cropTarget === 'footprintPreview') setFootprintPreview(croppedFile);
+    setCropTarget(null);
+    setCropImageSrc('');
+  };
+
+  const extractPath = (url: string | null | undefined) => {
     if (!url) return null;
     const parts = url.split('/pcb_components/');
     return parts.length > 1 ? parts[1] : null;
@@ -107,13 +134,13 @@ export default function AdminDashboard() {
         return data.publicUrl;
       };
 
-      let comp_img_url = null;
+      let comp_url = null;
       let symbol_prev_url = null;
       let footprint_prev_url = null;
       let symbol_url = null;
       let footprint_url = null;
 
-      if (componentImage) comp_img_url = await uploadFile(componentImage);
+      if (componentImage) comp_url = await uploadFile(componentImage);
       if (symbolPreview) symbol_prev_url = await uploadFile(symbolPreview);
       if (footprintPreview) footprint_prev_url = await uploadFile(footprintPreview);
       if (symbolFile) symbol_url = await uploadFile(symbolFile);
@@ -123,7 +150,7 @@ export default function AdminDashboard() {
         name,
         description,
         tags,
-        component_image_url: comp_img_url,
+        component_image_url: comp_url,
         symbol_preview_url: symbol_prev_url,
         footprint_preview_url: footprint_prev_url,
         symbol_file_url: symbol_url,
@@ -153,7 +180,19 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-12 px-4 animate-in fade-in duration-500 relative z-10">
+    <div className="max-w-4xl mx-auto py-12 px-4 animate-in fade-in duration-500 relative z-10">
+      {cropTarget && (
+        <ImageCropModal
+          imageSrc={cropImageSrc}
+          aspectRatio={cropTarget === 'symbolPreview' ? 4 / 3 : 1}
+          onApply={handleCropApply}
+          onCancel={() => {
+            setCropTarget(null);
+            setCropImageSrc('');
+          }}
+        />
+      )}
+
       <div className="text-center mb-10">
         <h1 className="text-4xl font-black tracking-tight mb-3 text-slate-900">Admin Dashboard</h1>
         <p className="text-slate-500 font-medium text-lg">Securely upload or delete PCB footprints and symbols.</p>
@@ -168,7 +207,7 @@ export default function AdminDashboard() {
       <form onSubmit={handleSubmit} className="bg-white border border-slate-200 p-8 md:p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 space-y-8 mb-16">
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Component Name</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="e.g. ESP32 (38 Pin) DevKit Module" />
+          <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="e.g. ESP32-WROOM-32" />
         </div>
 
         <div>
@@ -178,37 +217,61 @@ export default function AdminDashboard() {
 
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Tags (comma separated)</label>
-          <input type="text" value={tags} onChange={e => setTags(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="ESP32, Microcontroller, IOT" />
+          <input type="text" value={tags} onChange={e => setTags(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="Microcontroller, Wi-Fi, SMD" />
         </div>
 
-        {/* --- 1. COMPONENT REAL PHOTO / 3D MODEL (FRONT CARD VIEW) --- */}
-        <div className="pt-6 border-t border-slate-100">
-          <label className="block text-sm font-bold text-slate-800 mb-1 tracking-wide uppercase">
-            Component Image / Real Photo <span className="text-blue-600 font-semibold lowercase text-xs">(shows on front card & details thumbnail)</span>
-          </label>
-          <p className="text-xs text-slate-400 mb-3 font-medium">Upload real IC/board picture (e.g. ESP32 board image, chip photo)</p>
-          <input type="file" accept="image/*" onChange={e => setComponentImage(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer transition-colors" />
-        </div>
-
-        {/* --- 2. PREVIEW IMAGES SECTION (SYMBOL & FOOTPRINT) --- */}
-        <div className="pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="col-span-1">
-            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Symbol Preview Image</label>
-            <input type="file" accept="image/*" onChange={e => setSymbolPreview(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer transition-colors" />
-          </div>
-          <div className="col-span-1">
-            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Footprint Preview Image</label>
-            <input type="file" accept="image/*" onChange={e => setFootprintPreview(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer transition-colors" />
-          </div>
+        <div className="pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-8">
           
-          {/* --- 3. DOWNLOADABLE CAD FILES SECTION --- */}
+          {/* COMPONENT REAL PHOTO */}
+          <div className="col-span-1 flex flex-col">
+            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Component Real Photo (1:1)</label>
+            <div className="relative flex-1 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden h-48 group hover:border-blue-400 transition-colors cursor-pointer">
+              {componentImage ? (
+                <img src={URL.createObjectURL(componentImage)} className="w-full h-full object-cover" alt="Component" />
+              ) : (
+                <span className="text-slate-400 font-medium text-sm group-hover:text-blue-500">Click to Select</span>
+              )}
+              <input type="file" accept="image/*" onChange={e => handleFileSelectForCrop(e, 'componentImage')} className="absolute inset-0 opacity-0 cursor-pointer" />
+            </div>
+          </div>
+
+          {/* SYMBOL PREVIEW */}
+          <div className="col-span-1 flex flex-col">
+            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Symbol Preview (4:3)</label>
+            <div className="relative flex-1 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden h-48 group hover:border-blue-400 transition-colors cursor-pointer">
+              {symbolPreview ? (
+                <img src={URL.createObjectURL(symbolPreview)} className="w-full h-full object-cover" alt="Symbol" />
+              ) : (
+                <span className="text-slate-400 font-medium text-sm group-hover:text-blue-500">Click to Select</span>
+              )}
+              <input type="file" accept="image/*" onChange={e => handleFileSelectForCrop(e, 'symbolPreview')} className="absolute inset-0 opacity-0 cursor-pointer" />
+            </div>
+          </div>
+
+          {/* FOOTPRINT PREVIEW */}
+          <div className="col-span-1 flex flex-col">
+            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Footprint Preview (1:1)</label>
+            <div className="relative flex-1 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden h-48 group hover:border-blue-400 transition-colors cursor-pointer">
+              {footprintPreview ? (
+                <img src={URL.createObjectURL(footprintPreview)} className="w-full h-full object-cover" alt="Footprint" />
+              ) : (
+                <span className="text-slate-400 font-medium text-sm group-hover:text-blue-500">Click to Select</span>
+              )}
+              <input type="file" accept="image/*" onChange={e => handleFileSelectForCrop(e, 'footprintPreview')} className="absolute inset-0 opacity-0 cursor-pointer" />
+            </div>
+          </div>
+
+        </div>
+
+        <div className="pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* FILES SECTION */}
           <div className="col-span-1">
-            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Schematic Symbol (.lib / .kicad_sym)</label>
+            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Schematic Symbol (.lib)</label>
             <input type="file" onChange={e => setSymbolFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer transition-colors" />
           </div>
           <div className="col-span-1">
             <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">PCB Footprint (.kicad_mod)</label>
-            <input type="file" onChange={e => setFootprintFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer transition-colors" />
+            <input type="file" onChange={e => setFootprintFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 cursor-pointer transition-colors" />
           </div>
         </div>
 

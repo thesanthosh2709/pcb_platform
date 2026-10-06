@@ -2,12 +2,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-// 1. Strict Types to satisfy Vercel build
 interface ComponentRecord {
   id: string | number;
   name: string;
   description: string;
   tags: string;
+  component_image_url: string | null;
   symbol_preview_url: string | null;
   footprint_preview_url: string | null;
   symbol_file_url: string | null;
@@ -20,16 +20,17 @@ export default function AdminDashboard() {
   const [tags, setTags] = useState('');
   const [adminSecret, setAdminSecret] = useState('');
   
+  // 3 Preview States: Component Real Photo, Symbol, Footprint
+  const [componentImage, setComponentImage] = useState<File | null>(null);
   const [symbolPreview, setSymbolPreview] = useState<File | null>(null);
   const [footprintPreview, setFootprintPreview] = useState<File | null>(null);
   
+  // Downloadable Files
   const [symbolFile, setSymbolFile] = useState<File | null>(null);
   const [footprintFile, setFootprintFile] = useState<File | null>(null);
   
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-
-  // 2. Strongly typed state
   const [components, setComponents] = useState<ComponentRecord[]>([]);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function AdminDashboard() {
     if (window.confirm(`Are you sure you want to permanently delete ${comp.name} and its files?`)) {
       try {
         const paths = [
+          extractPath(comp.component_image_url),
           extractPath(comp.symbol_preview_url),
           extractPath(comp.footprint_preview_url),
           extractPath(comp.symbol_file_url),
@@ -75,7 +77,6 @@ export default function AdminDashboard() {
         window.alert('Component deleted successfully!');
         fetchComponents();
       } catch (err: unknown) {
-        // Safe error handling for strict TS
         if (err instanceof Error) {
           window.alert(`Error: ${err.message}`);
         } else {
@@ -106,11 +107,13 @@ export default function AdminDashboard() {
         return data.publicUrl;
       };
 
+      let comp_img_url = null;
       let symbol_prev_url = null;
       let footprint_prev_url = null;
       let symbol_url = null;
       let footprint_url = null;
 
+      if (componentImage) comp_img_url = await uploadFile(componentImage);
       if (symbolPreview) symbol_prev_url = await uploadFile(symbolPreview);
       if (footprintPreview) footprint_prev_url = await uploadFile(footprintPreview);
       if (symbolFile) symbol_url = await uploadFile(symbolFile);
@@ -120,6 +123,7 @@ export default function AdminDashboard() {
         name,
         description,
         tags,
+        component_image_url: comp_img_url,
         symbol_preview_url: symbol_prev_url,
         footprint_preview_url: footprint_prev_url,
         symbol_file_url: symbol_url,
@@ -132,6 +136,7 @@ export default function AdminDashboard() {
       setName('');
       setDescription('');
       setTags('');
+      setComponentImage(null);
       setSymbolPreview(null);
       setFootprintPreview(null);
       setSymbolFile(null);
@@ -163,7 +168,7 @@ export default function AdminDashboard() {
       <form onSubmit={handleSubmit} className="bg-white border border-slate-200 p-8 md:p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 space-y-8 mb-16">
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Component Name</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="e.g. ESP32-WROOM-32" />
+          <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="e.g. ESP32 (38 Pin) DevKit Module" />
         </div>
 
         <div>
@@ -173,11 +178,20 @@ export default function AdminDashboard() {
 
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Tags (comma separated)</label>
-          <input type="text" value={tags} onChange={e => setTags(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="Microcontroller, Wi-Fi, SMD" />
+          <input type="text" value={tags} onChange={e => setTags(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="ESP32, Microcontroller, IOT" />
         </div>
 
+        {/* --- 1. COMPONENT REAL PHOTO / 3D MODEL (FRONT CARD VIEW) --- */}
+        <div className="pt-6 border-t border-slate-100">
+          <label className="block text-sm font-bold text-slate-800 mb-1 tracking-wide uppercase">
+            Component Image / Real Photo <span className="text-blue-600 font-semibold lowercase text-xs">(shows on front card & details thumbnail)</span>
+          </label>
+          <p className="text-xs text-slate-400 mb-3 font-medium">Upload real IC/board picture (e.g. ESP32 board image, chip photo)</p>
+          <input type="file" accept="image/*" onChange={e => setComponentImage(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer transition-colors" />
+        </div>
+
+        {/* --- 2. PREVIEW IMAGES SECTION (SYMBOL & FOOTPRINT) --- */}
         <div className="pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* --- STRICTLY MAPPED DUAL PREVIEW IMAGE INPUTS --- */}
           <div className="col-span-1">
             <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Symbol Preview Image</label>
             <input type="file" accept="image/*" onChange={e => setSymbolPreview(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer transition-colors" />
@@ -187,14 +201,14 @@ export default function AdminDashboard() {
             <input type="file" accept="image/*" onChange={e => setFootprintPreview(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer transition-colors" />
           </div>
           
-          {/* --- FILES SECTION --- */}
+          {/* --- 3. DOWNLOADABLE CAD FILES SECTION --- */}
           <div className="col-span-1">
-            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Schematic Symbol (.lib)</label>
+            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Schematic Symbol (.lib / .kicad_sym)</label>
             <input type="file" onChange={e => setSymbolFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer transition-colors" />
           </div>
           <div className="col-span-1">
             <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">PCB Footprint (.kicad_mod)</label>
-            <input type="file" onChange={e => setFootprintFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 cursor-pointer transition-colors" />
+            <input type="file" onChange={e => setFootprintFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer transition-colors" />
           </div>
         </div>
 

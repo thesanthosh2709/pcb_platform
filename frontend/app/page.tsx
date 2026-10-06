@@ -56,8 +56,8 @@ export default function Home() {
           <Link href={`/components/${comp.id}`} key={comp.id} className="group block">
             <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1">
               <div className="h-56 bg-slate-50 relative flex items-center justify-center border-b border-slate-100">
-                {comp.preview_image_url ? (
-                  <img src={comp.preview_image_url} alt={comp.name} className="w-full h-full object-contain p-4 mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+                {comp.symbol_preview_url ? (
+                  <img src={comp.symbol_preview_url} alt={comp.name} className="w-full h-full object-contain p-4 mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-300 font-medium">No Image Available</div>
                 )}

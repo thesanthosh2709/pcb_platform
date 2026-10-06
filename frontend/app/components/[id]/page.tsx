@@ -10,6 +10,7 @@ export default function ComponentDetail() {
   const [content, setContent] = useState('');
   const [rating, setRating] = useState(5);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'symbol' | 'footprint'>('symbol');
 
   useEffect(() => {
     fetchComponent();
@@ -60,8 +61,6 @@ export default function ComponentDetail() {
     }
   };
 
-
-
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userName || !content) return;
@@ -89,13 +88,41 @@ export default function ComponentDetail() {
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10">
       <div className="bg-white border border-slate-200 rounded-[2rem] p-8 md:p-10 flex flex-col md:flex-row gap-10 shadow-xl shadow-slate-200/40">
-        <div className="w-full md:w-1/2 h-72 md:h-auto bg-slate-50 rounded-3xl overflow-hidden relative border border-slate-100 flex items-center justify-center p-4">
-          {component.preview_image_url ? (
-            <img src={component.preview_image_url} alt={component.name} className="w-full h-full object-contain mix-blend-multiply" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400 font-medium">No Preview Available</div>
-          )}
+        
+        {/* NEW DUAL-VIEW PREVIEW SECTION */}
+        <div className="w-full md:w-1/2 flex flex-col gap-4">
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setActiveTab('symbol')} 
+              className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === 'symbol' ? 'bg-blue-100 text-blue-700 shadow-inner' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+            >
+              Symbol Preview
+            </button>
+            <button 
+              onClick={() => setActiveTab('footprint')} 
+              className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === 'footprint' ? 'bg-emerald-100 text-emerald-700 shadow-inner' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+            >
+              Footprint Preview
+            </button>
+          </div>
+          
+          <div className="h-72 md:h-80 bg-slate-50 rounded-3xl overflow-hidden relative border border-slate-100 flex items-center justify-center p-4">
+            {activeTab === 'symbol' ? (
+              component.symbol_preview_url ? (
+                <img src={component.symbol_preview_url} alt={`${component.name} Symbol`} className="w-full h-full object-contain mix-blend-multiply animate-in fade-in duration-300" />
+              ) : (
+                <div className="text-slate-400 font-medium">No Symbol Preview Available</div>
+              )
+            ) : (
+              component.footprint_preview_url ? (
+                <img src={component.footprint_preview_url} alt={`${component.name} Footprint`} className="w-full h-full object-contain mix-blend-multiply animate-in fade-in duration-300" />
+              ) : (
+                <div className="text-slate-400 font-medium">No Footprint Preview Available</div>
+              )
+            )}
+          </div>
         </div>
+
         <div className="w-full md:w-1/2 flex flex-col justify-center">
           <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tight">{component.name}</h1>
           <p className="text-slate-600 mb-8 text-lg leading-relaxed">{component.description}</p>
@@ -135,7 +162,7 @@ export default function ComponentDetail() {
               <div className="flex gap-2 justify-center py-2">
                 {[1,2,3,4,5].map(num => (
                   <button type="button" key={num} onClick={() => setRating(num)} className={`text-4xl p-1 rounded-full transition-colors transform hover:scale-110 ${rating >= num ? 'text-yellow-400' : 'text-slate-200 hover:text-slate-300'}`}>
-                    ★
+                    ⭐
                   </button>
                 ))}
               </div>
@@ -162,7 +189,7 @@ export default function ComponentDetail() {
               <div key={comment.id} className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <span className="font-bold text-slate-800 text-lg">{comment.user_name}</span>
-                  <span className="text-yellow-400 text-sm tracking-widest">{'★'.repeat(comment.rating || 5)}<span className="text-slate-200">{'★'.repeat(5 - (comment.rating || 5))}</span></span>
+                  <span className="text-yellow-400 text-sm tracking-widest">{'⭐'.repeat(comment.rating || 5)}<span className="text-slate-200">{'⭐'.repeat(5 - (comment.rating || 5))}</span></span>
                 </div>
                 <p className="text-slate-600 leading-relaxed">{comment.content}</p>
                 <div className="mt-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">{new Date(comment.created_at).toLocaleDateString()}</div>

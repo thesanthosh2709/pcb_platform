@@ -184,7 +184,7 @@ export default function AdminDashboard() {
       {cropTarget && (
         <ImageCropModal
           imageSrc={cropImageSrc}
-          aspectRatio={cropTarget === 'symbolPreview' ? 4 / 3 : 1}
+          aspectRatio={1}
           onApply={handleCropApply}
           onCancel={() => {
             setCropTarget(null);
@@ -237,7 +237,7 @@ export default function AdminDashboard() {
 
           {/* SYMBOL PREVIEW */}
           <div className="col-span-1 flex flex-col">
-            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Symbol Preview (4:3)</label>
+            <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Symbol Preview (1:1)</label>
             <div className="relative flex-1 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden h-48 group hover:border-blue-400 transition-colors cursor-pointer">
               {symbolPreview ? (
                 <img src={URL.createObjectURL(symbolPreview)} className="w-full h-full object-cover" alt="Symbol" />

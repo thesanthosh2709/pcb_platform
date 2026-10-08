@@ -10,10 +10,10 @@ interface ComponentRecord {
   description: string;
   tags: string;
   component_image_url?: string | null;
-  symbol_preview_url: string | null;
-  footprint_preview_url: string | null;
-  symbol_file_url: string | null;
-  footprint_file_url: string | null;
+  symbol_preview_url?: string | null;
+  footprint_preview_url?: string | null;
+  symbol_file_url?: string | null;
+  footprint_file_url?: string | null;
 }
 
 type CropTarget = 'componentImage' | 'symbolPreview' | 'footprintPreview' | null;
@@ -38,6 +38,9 @@ export default function AdminDashboard() {
   // Crop State
   const [cropTarget, setCropTarget] = useState<CropTarget>(null);
   const [cropImageSrc, setCropImageSrc] = useState<string>('');
+
+  // Edit State
+  const [editingComponentId, setEditingComponentId] = useState<string | number | null>(null);
 
   useEffect(() => {
     fetchComponents();
@@ -102,6 +105,11 @@ export default function AdminDashboard() {
         if (error) throw error;
 
         window.alert('Component deleted successfully!');
+        
+        // Reset form if admin deletes the component they were currently editing
+        if (editingComponentId === comp.id) {
+          resetForm();
+        }
         fetchComponents();
       } catch (err: unknown) {
         if (err instanceof Error) {
@@ -111,6 +119,36 @@ export default function AdminDashboard() {
         }
       }
     }
+  };
+
+  const handleEditComponent = (comp: ComponentRecord) => {
+    setName(comp.name);
+    setDescription(comp.description || '');
+    setTags(comp.tags || '');
+    setEditingComponentId(comp.id);
+    
+    // Clear any previously selected new files so they don't overwrite if untouched during edit
+    setComponentImage(null);
+    setSymbolPreview(null);
+    setFootprintPreview(null);
+    setSymbolFile(null);
+    setFootprintFile(null);
+    setMessage('');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const resetForm = () => {
+    setName('');
+    setDescription('');
+    setTags('');
+    setComponentImage(null);
+    setSymbolPreview(null);
+    setFootprintPreview(null);
+    setSymbolFile(null);
+    setFootprintFile(null);
+    setEditingComponentId(null);
+    setMessage('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,40 +172,29 @@ export default function AdminDashboard() {
         return data.publicUrl;
       };
 
-      let comp_url = null;
-      let symbol_prev_url = null;
-      let footprint_prev_url = null;
-      let symbol_url = null;
-      let footprint_url = null;
-
-      if (componentImage) comp_url = await uploadFile(componentImage);
-      if (symbolPreview) symbol_prev_url = await uploadFile(symbolPreview);
-      if (footprintPreview) footprint_prev_url = await uploadFile(footprintPreview);
-      if (symbolFile) symbol_url = await uploadFile(symbolFile);
-      if (footprintFile) footprint_url = await uploadFile(footprintFile);
-
-      const { error } = await supabase.from('components').insert([{
+      const payload: Partial<ComponentRecord> = {
         name,
         description,
-        tags,
-        component_image_url: comp_url,
-        symbol_preview_url: symbol_prev_url,
-        footprint_preview_url: footprint_prev_url,
-        symbol_file_url: symbol_url,
-        footprint_file_url: footprint_url
-      }]);
+        tags
+      };
 
-      if (error) throw error;
+      if (componentImage) payload.component_image_url = await uploadFile(componentImage);
+      if (symbolPreview) payload.symbol_preview_url = await uploadFile(symbolPreview);
+      if (footprintPreview) payload.footprint_preview_url = await uploadFile(footprintPreview);
+      if (symbolFile) payload.symbol_file_url = await uploadFile(symbolFile);
+      if (footprintFile) payload.footprint_file_url = await uploadFile(footprintFile);
 
-      setMessage('Component created successfully! 🎉');
-      setName('');
-      setDescription('');
-      setTags('');
-      setComponentImage(null);
-      setSymbolPreview(null);
-      setFootprintPreview(null);
-      setSymbolFile(null);
-      setFootprintFile(null);
+      if (editingComponentId) {
+        const { error } = await supabase.from('components').update(payload).eq('id', editingComponentId);
+        if (error) throw error;
+        setMessage('Component updated successfully! 🎉');
+      } else {
+        const { error } = await supabase.from('components').insert([payload]);
+        if (error) throw error;
+        setMessage('Component created successfully! 🎉');
+      }
+
+      resetForm();
       fetchComponents();
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -195,7 +222,7 @@ export default function AdminDashboard() {
 
       <div className="text-center mb-10">
         <h1 className="text-4xl font-black tracking-tight mb-3 text-slate-900">Admin Dashboard</h1>
-        <p className="text-slate-500 font-medium text-lg">Securely upload or delete PCB footprints and symbols.</p>
+        <p className="text-slate-500 font-medium text-lg">Securely upload, edit, or delete PCB components.</p>
       </div>
 
       {message && (
@@ -229,7 +256,9 @@ export default function AdminDashboard() {
               {componentImage ? (
                 <img src={URL.createObjectURL(componentImage)} className="w-full h-full object-cover" alt="Component" />
               ) : (
-                <span className="text-slate-400 font-medium text-sm group-hover:text-blue-500">Click to Select</span>
+                <span className="text-slate-400 font-medium text-sm group-hover:text-blue-500 text-center px-4">
+                  {editingComponentId ? 'Select new to overwrite' : 'Click to Select'}
+                </span>
               )}
               <input type="file" accept="image/*" onChange={e => handleFileSelectForCrop(e, 'componentImage')} className="absolute inset-0 opacity-0 cursor-pointer" />
             </div>
@@ -242,7 +271,9 @@ export default function AdminDashboard() {
               {symbolPreview ? (
                 <img src={URL.createObjectURL(symbolPreview)} className="w-full h-full object-cover" alt="Symbol" />
               ) : (
-                <span className="text-slate-400 font-medium text-sm group-hover:text-blue-500">Click to Select</span>
+                <span className="text-slate-400 font-medium text-sm group-hover:text-blue-500 text-center px-4">
+                  {editingComponentId ? 'Select new to overwrite' : 'Click to Select'}
+                </span>
               )}
               <input type="file" accept="image/*" onChange={e => handleFileSelectForCrop(e, 'symbolPreview')} className="absolute inset-0 opacity-0 cursor-pointer" />
             </div>
@@ -255,7 +286,9 @@ export default function AdminDashboard() {
               {footprintPreview ? (
                 <img src={URL.createObjectURL(footprintPreview)} className="w-full h-full object-cover" alt="Footprint" />
               ) : (
-                <span className="text-slate-400 font-medium text-sm group-hover:text-blue-500">Click to Select</span>
+                <span className="text-slate-400 font-medium text-sm group-hover:text-blue-500 text-center px-4">
+                  {editingComponentId ? 'Select new to overwrite' : 'Click to Select'}
+                </span>
               )}
               <input type="file" accept="image/*" onChange={e => handleFileSelectForCrop(e, 'footprintPreview')} className="absolute inset-0 opacity-0 cursor-pointer" />
             </div>
@@ -267,22 +300,35 @@ export default function AdminDashboard() {
           {/* FILES SECTION */}
           <div className="col-span-1">
             <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Schematic Symbol (.lib)</label>
-            <input type="file" onChange={e => setSymbolFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer transition-colors" />
+            <div className="relative">
+              <input type="file" onChange={e => setSymbolFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer transition-colors" />
+              {editingComponentId && !symbolFile && <div className="text-xs text-slate-400 mt-2 ml-2">Leave blank to keep existing file</div>}
+            </div>
           </div>
           <div className="col-span-1">
             <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">PCB Footprint (.kicad_mod)</label>
-            <input type="file" onChange={e => setFootprintFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 cursor-pointer transition-colors" />
+            <div className="relative">
+              <input type="file" onChange={e => setFootprintFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 cursor-pointer transition-colors" />
+              {editingComponentId && !footprintFile && <div className="text-xs text-slate-400 mt-2 ml-2">Leave blank to keep existing file</div>}
+            </div>
           </div>
         </div>
 
         <div className="pt-8 mt-8 border-t border-slate-100">
-          <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Admin Secret Key (Upload)</label>
-          <input type="password" value={adminSecret} onChange={e => setAdminSecret(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="Enter admin password to verify upload" />
+          <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wide uppercase">Admin Secret Key (Required for {editingComponentId ? 'Update' : 'Upload'})</label>
+          <input type="password" value={adminSecret} onChange={e => setAdminSecret(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all" placeholder="Enter admin password to verify action" />
         </div>
 
-        <button type="submit" disabled={loading} className="w-full py-5 mt-4 bg-slate-900 hover:bg-slate-800 text-white font-black text-lg tracking-wide rounded-xl shadow-xl shadow-slate-900/20 transition-all disabled:opacity-50 active:scale-95">
-          {loading ? 'Processing Upload...' : 'Deploy Component'}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-4 mt-4">
+          <button type="submit" disabled={loading} className="flex-1 py-5 bg-slate-900 hover:bg-slate-800 text-white font-black text-lg tracking-wide rounded-xl shadow-xl shadow-slate-900/20 transition-all disabled:opacity-50 active:scale-95">
+            {loading ? 'Processing...' : (editingComponentId ? 'Update Component' : 'Deploy Component')}
+          </button>
+          {editingComponentId && (
+            <button type="button" onClick={resetForm} disabled={loading} className="py-5 px-8 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-lg tracking-wide rounded-xl transition-all disabled:opacity-50 active:scale-95 border border-slate-200">
+              Cancel Edit
+            </button>
+          )}
+        </div>
       </form>
 
       {/* DELETE SECTION */}
@@ -290,17 +336,25 @@ export default function AdminDashboard() {
         <h2 className="text-3xl font-black mb-6 text-slate-900 tracking-tight">Manage Components</h2>
         <div className="space-y-4">
           {components.length > 0 ? components.map(comp => (
-            <div key={comp.id} className="flex justify-between items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div key={comp.id} className={`flex justify-between items-center p-6 rounded-2xl border shadow-sm hover:shadow-md transition-all ${editingComponentId === comp.id ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200'}`}>
               <div className="pr-4">
-                <h3 className="text-xl font-bold text-slate-800">{comp.name}</h3>
+                <h3 className="text-xl font-bold text-slate-800">{comp.name} {editingComponentId === comp.id && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-1 rounded-full uppercase tracking-widest font-bold">Editing</span>}</h3>
                 <p className="text-slate-500 text-sm mt-1">{comp.description?.substring(0, 60)}...</p>
               </div>
-              <button 
-                onClick={() => handleDeleteComponent(comp)}
-                className="px-5 py-2.5 bg-red-50 hover:bg-red-500 hover:text-white text-red-600 font-bold rounded-xl transition-colors border border-red-100 flex-shrink-0"
-              >
-                Delete
-              </button>
+              <div className="flex gap-2 flex-shrink-0">
+                <button 
+                  onClick={() => handleEditComponent(comp)}
+                  className="px-5 py-2.5 bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-700 font-bold rounded-xl transition-colors"
+                >
+                  Edit
+                </button>
+                <button 
+                  onClick={() => handleDeleteComponent(comp)}
+                  className="px-5 py-2.5 bg-red-50 hover:bg-red-500 hover:text-white text-red-600 font-bold rounded-xl transition-colors border border-red-100"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           )) : (
             <p className="text-slate-500 font-medium text-center py-8">No components found.</p>
